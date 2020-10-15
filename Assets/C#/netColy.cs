@@ -74,10 +74,7 @@ public class netColy : MonoBehaviour
         try
         {
             // Create auto join so we need out first
-            if (PlayerPrefs.GetString("roomId") != "")
-            {
-                await room.Leave();
-            }
+            LeavingRoom();
 
             room = await client.Create<State>(roomName);
 
@@ -221,21 +218,42 @@ public class netColy : MonoBehaviour
 
     public async void JoinRoomByID(string rID)
     {
-        //roomIDWillJoin = rID;
-        //OnCheckBeforeJoin_AndJoinRoom();
-        string rNew = rID;
-        string rOld = PlayerPrefs.GetString("roomId");
+        try
+        {
+            string rNew = rID;
+            string rOld = PlayerPrefs.GetString("roomId");
 
-        if (rNew == rOld)
-            return;
+            //if (rNew == rOld) 
+            //    return;
 
-        await room.Leave();
+            LeavingRoom();
 
-
-        room = await client.JoinById<State>(rNew, new Dictionary<string, object>() { });
-        RegisterRecMes();
+            room = await client.JoinById<State>(rNew, new Dictionary<string, object>() { });
+            RegisterRecMes();
+        }
+        catch 
+        {
+        }
+       
 
     }
+
+    async void LeavingRoom()
+    {
+        try
+        {
+            await room.Leave();
+
+            //PlayerPrefs.SetString("roomId", "");
+            //PlayerPrefs.Save();
+
+            string endpoint = serverLink;
+            Debug.Log("Connecting to " + endpoint + ".....");
+            client = ColyseusManager.Instance.CreateClient(endpoint);
+        }
+        catch {}
+    }
+
 
 
     async void OnRefeshRoom()
@@ -287,19 +305,19 @@ public class netColy : MonoBehaviour
 
 
             // set color for connected room
-            foreach (Transform child in grid_list_room.transform)
-            {
-                if (child.gameObject.GetComponentInChildren<Text>().text == room.Id)
-                {
-                    child.gameObject.GetComponentInChildren<Text>().color = Color.red;
-                    break;
-                }
-            }
+            //foreach (Transform child in grid_list_room.transform)
+            //{
+            //    if (child.gameObject.GetComponentInChildren<Text>().text == room.Id)
+            //    {
+            //        child.gameObject.GetComponentInChildren<Text>().color = Color.red;
+            //        break;
+            //    }
+            //}
 
-            foreach (Transform child in grid_list_room.transform)
-            {
-                child.gameObject.GetComponentInChildren<Text>().color = Color.red;
-            }
+            //foreach (Transform child in grid_list_room.transform)
+            //{
+            //    child.gameObject.GetComponentInChildren<Text>().color = Color.red;
+            //}
 
 
         }
@@ -450,17 +468,7 @@ public class netColy : MonoBehaviour
 
     async void OnLeaveRoom()
     {
-        if (PlayerPrefs.GetString("roomId") != "")
-        {
-            await room.Leave();
-
-            PlayerPrefs.SetString("roomId", "");
-            PlayerPrefs.Save();
-
-            string endpoint = serverLink;
-            Debug.Log("Connecting to " + endpoint + ".....");
-            client = ColyseusManager.Instance.CreateClient(endpoint);
-        }
+        LeavingRoom();
     }
 
     #endregion GAME
