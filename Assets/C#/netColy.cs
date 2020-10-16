@@ -23,7 +23,7 @@ public class netColy : MonoBehaviour
     public InputField inputText;
 
     string roomName = "gameVinh";
-    string serverLink = "ws://localhost:2567";
+    string serverLink = "ws://localhost:2569";
 
     public GameObject grid_list_room;
     public GameObject bnt_show_roomID;
@@ -103,11 +103,10 @@ public class netColy : MonoBehaviour
 
         }
 
-        catch (Exception ex)
+        catch 
         {
             Debug.Log($"room {room.Name} CREATED FAIL !!");
-            Debug.Log($"ERR : {ex.Message}");
-
+          
         }
 
     }
@@ -388,7 +387,7 @@ public class netColy : MonoBehaviour
 
         if (spawnTime <= 0)
         {
-            spawnTime = 0.3F;
+            spawnTime = 0.2F;
             StartCoroutine(spawnThing());
         }
     }
@@ -396,7 +395,11 @@ public class netColy : MonoBehaviour
     IEnumerator spawnThing()
     {
         yield return new WaitForSeconds(0.01F);
-        GameObject prefab1 = Instantiate(prefab, spawnPoint.transform.position, Quaternion.identity);
+
+        float x = UnityEngine.Random.Range(-3,3);
+        float y = UnityEngine.Random.Range(4,6);
+
+        GameObject prefab1 = Instantiate(prefab, new Vector3(x,y, spawnPoint.transform.position.z), Quaternion.identity);
         Destroy(prefab1, 8F);
     }
 

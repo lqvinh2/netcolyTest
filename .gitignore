@@ -1,3 +1,13 @@
+# ==========================================================================
+# NODE server
+node_modules
+package-lock.json
+npm-debug.log
+*.js
+# ==========================================================================
+# ==========================================================================
+# ==========================================================================
+# ==========================================================================
 # This .gitignore file should be placed at the root of your Unity project directory
 #
 # Get latest from https://github.com/github/gitignore/blob/master/Unity.gitignore
