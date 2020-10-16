@@ -1,5 +1,35 @@
 import {Schema, type, MapSchema, ArraySchema}  from "@colyseus/schema";
 
+//  npx schema-codegen ./src/state.ts --csharp --output ../Assets/C#
+export class UserJSON extends Schema {
+
+    @type('string')
+    name: string;
+
+    @type(['float32'])
+    position: ArraySchema<number> = new ArraySchema<number>();
+
+    @type(['float32'])
+    rotation: ArraySchema<number> = new ArraySchema<number>();
+
+    @type('int32')
+    health: number;
+}
+
+export class PositionJSON extends Schema {
+
+    @type(['float32'])
+    position: ArraySchema<number> = new ArraySchema<number>();
+}
+
+
+export class RotationJSON extends Schema {
+
+    @type(['float32'])
+    rotation: ArraySchema<number> = new ArraySchema<number>();
+}
+
+
 export class Player extends Schema {
     @type('string')
     sessionId: string;
@@ -9,6 +39,13 @@ export class Player extends Schema {
 }
 
 export class State extends Schema {
+
+    @type({ map: PositionJSON })
+    position: MapSchema<PositionJSON> = new MapSchema<PositionJSON>();
+
+    @type({ map: PositionJSON })
+    rotation: MapSchema<PositionJSON> = new MapSchema<PositionJSON>();
+
     @type('string')
     phase: string = "waiting";
 

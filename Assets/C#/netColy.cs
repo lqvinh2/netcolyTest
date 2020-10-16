@@ -17,6 +17,7 @@ public class netColy : MonoBehaviour
     public Button btn_refesh_room;
     public Button btn_clear_text;
     public Button btn_leave_room;
+    public Button btn_close_canvas_connect_board;
 
     protected Client client;
     protected Room<State> room;
@@ -32,55 +33,88 @@ public class netColy : MonoBehaviour
 
     public static netColy instance = null;
 
-
+    public bool isRoomMater = false; // chi la` room master thi` moi tao ENEMY
+    public bool isLocalPlayer = false; // khi tham gia room thành công thì chuyển trạng thái set sang TRUE
+    
 
     // Start is called before the first frame update
     void Start()
     {
+        instance = this;
+
         PlayerPrefs.SetString("roomName", "");
         PlayerPrefs.SetString("roomId", "");
         PlayerPrefs.SetString("sessionId", "");
         PlayerPrefs.Save();
 
-
-        instance = this;
-
         btn_move_right.onClick.AddListener(OnMoveRight);
         btn_create_room.onClick.AddListener(CreateRoom);
-
-        btn_refesh_room.onClick.AddListener(OnRefeshRoom);
-        btn_clear_text.onClick.AddListener(OnClearText);
-
+        btn_refesh_room.onClick.AddListener(RefeshRoom);
+        btn_clear_text.onClick.AddListener(ClearText);
         btn_leave_room.onClick.AddListener(OnLeaveRoom);
+        btn_close_canvas_connect_board.onClick.AddListener(CloseConnBoard);
         
+        ConnectToMater();
+        ClientFirstConnToMaster_CreateRoom_And_Join();
+    }
 
-        ConnectToServer();
+    public GameObject ConnBoard;
+    bool boardConn_Close = false;
+    void CloseConnBoard()
+    {
+        if (boardConn_Close == true)
+        {
+            boardConn_Close = false;
+            ConnBoard.SetActive(true);
+            return;
+        }
+
+        if (boardConn_Close == false)
+        {
+            boardConn_Close = true;
+            ConnBoard.SetActive(false);
+            return;
+        }
+
     }
 
 
-
     #region NET
-    void ConnectToServer()
+    void ConnectToMater()
     {
         string endpoint = serverLink;
         Debug.Log("Connecting to " + endpoint + ".....");
         client = ColyseusManager.Instance.CreateClient(endpoint);
-        GetAvailableRooms();
     }
 
+    async void ClientFirstConnToMaster_CreateRoom_And_Join()
+    {
+        var roomsAvailable = await client.GetAvailableRooms<RoomAvailable>(roomName);
+
+        CreateGrid_Show_Room(roomsAvailable);
+
+        string str = "Available rooms is (" + roomsAvailable.Length + ")";
+        Debug.Log(str);
+        inputText.text = str;
+
+        if (roomsAvailable.Length <= 0)
+            CreateRoom();
+    }
 
     public async void CreateRoom()
     {
         try
         {
             // Create auto join so we need out first
-            LeavingRoom();
+            bool b = await LeavingRoom();
 
             room = await client.Create<State>(roomName);
 
             RegisterRecMes();
 
             Debug.Log($"room {room.Name} CREATED SCC !!");
+
+            isRoomMater = true;
 
             var roomsAvailable = await client.GetAvailableRooms<RoomAvailable>(roomName);
 
@@ -97,10 +131,7 @@ public class netColy : MonoBehaviour
             ss = $"__ CREATED room SCC NOW WE HAVE: {roomsAvailable.Length}" + ss;
             inputText.text = ss;
 
-
             CreateGrid_Show_Room(roomsAvailable);
-
-
         }
 
         catch 
@@ -111,23 +142,63 @@ public class netColy : MonoBehaviour
 
     }
 
-    void SaveConnInfo()
+    public async void JoinRoom()
+    {
+        bool b = await LeavingRoom();
+
+        room = await client.Join<State>(roomName, new Dictionary<string, object>() { });
+        RegisterRecMes();
+
+        isLocalPlayer = true;
+        isRoomMater = false;
+    }
+
+    public async void JoinRoomByID(string rID)
+    {
+        try
+        {
+            string rNew = rID;
+            string rOld = PlayerPrefs.GetString("roomId");
+
+            //if (rNew == rOld) 
+            //    return;
+
+            bool b = await LeavingRoom();
+
+            room = await client.JoinById<State>(rNew, new Dictionary<string, object>() { });
+            RegisterRecMes();
+        }
+        catch
+        {
+        }
+    }
+
+    public async void JoinOrCreateRoom()
+    {
+        bool b = await LeavingRoom();
+
+        room = await client.JoinOrCreate<State>(roomName, new Dictionary<string, object>() { });
+        RegisterRecMes();
+
+        isLocalPlayer = true;
+        isRoomMater = false;
+
+    }
+
+    public void RegisterRecMes()
     {
         PlayerPrefs.SetString("roomName", room.Name);
         PlayerPrefs.SetString("roomId", room.Id);
         PlayerPrefs.SetString("sessionId", room.SessionId);
         PlayerPrefs.Save();
-    }
 
-    public void RegisterRecMes()
-    {
-        SaveConnInfo();
+        //ListPlayerConnInfo.Add(new CLASS_PlayerConnInfo() { roomName = room.Name, roomId = room.Id, sessionId = room.SessionId });
 
-        ListPlayerConnInfo.Add(new CLASS_PlayerConnInfo() { roomName = room.Name, roomId = room.Id, sessionId = room.SessionId });
 
-        room.OnMessage<Player>("svTestNet", (message) =>
+
+        room.OnMessage<object>("svTestNet", (message) =>
         {
-            Debug.Log(message);
+            Debug.Log(message.ToString());
             inputText.text += "__ CONN to server SCC !! ROOM_ID :" + room.Id + "ssID:" + room.SessionId;
         });
 
@@ -140,6 +211,14 @@ public class netColy : MonoBehaviour
         room.OnMessage<Player>("sv_move_right", (player) =>
         {
             inputText.text += "__" + player.sessionId;
+        });
+
+        room.OnMessage<float[]>("player move", (pos) =>
+        {
+            Debug.Log(pos[0]);
+            GameObject player = GameObject.FindWithTag("Player");
+            player.transform.position = new Vector3(pos[0], pos[1], pos[2]);
+
         });
 
         room.OnMessage<string>("sv_check_before_join", (msg) =>
@@ -168,10 +247,14 @@ public class netColy : MonoBehaviour
 
     }
 
+    /*
+     if use Recconect in Server side code fucntion : async onLeave (client:Client) {}
+        must call :
+           const newClient = await this.allowReconnection(client, 10);
+           console.log("reconnected!", newClient.sessionId);
+     */
     async void Reconn()
     {
-
-        // JoinRoomByID(roomIDWillJoin);
         string roomId = PlayerPrefs.GetString("roomId");
         string sessionId = PlayerPrefs.GetString("sessionId");
 
@@ -200,45 +283,9 @@ public class netColy : MonoBehaviour
         
     }
 
-    string roomIDWillJoin = "";
-
-    public async void JoinOrCreateRoom()
+    async System.Threading.Tasks.Task<bool> LeavingRoom()
     {
-        room = await client.JoinOrCreate<State>(roomName, new Dictionary<string, object>() { });
-        RegisterRecMes();
-
-    }
-
-    public async void JoinRoom()
-    {
-        room = await client.Join<State>(roomName, new Dictionary<string, object>() { });
-        RegisterRecMes();
-    }
-
-    public async void JoinRoomByID(string rID)
-    {
-        try
-        {
-            string rNew = rID;
-            string rOld = PlayerPrefs.GetString("roomId");
-
-            //if (rNew == rOld) 
-            //    return;
-
-            LeavingRoom();
-
-            room = await client.JoinById<State>(rNew, new Dictionary<string, object>() { });
-            RegisterRecMes();
-        }
-        catch 
-        {
-        }
-       
-
-    }
-
-    async void LeavingRoom()
-    {
+        bool ret = false;
         try
         {
             await room.Leave();
@@ -246,22 +293,40 @@ public class netColy : MonoBehaviour
             //PlayerPrefs.SetString("roomId", "");
             //PlayerPrefs.Save();
 
-            string endpoint = serverLink;
-            Debug.Log("Connecting to " + endpoint + ".....");
-            client = ColyseusManager.Instance.CreateClient(endpoint);
+            ConnectToMater();
+
+            // Chuyển về thái chờ...
+            //   nếu tạo room thì là RoomMater, 
+            //   join room thành công thì sẽ thành isLocalPlayer
+            isLocalPlayer = false;
+            isRoomMater = false;
+
+            ret = true;
         }
-        catch {}
+        catch {
+            ret = false;
+        }
+
+        return ret;
     }
 
-
-
-    async void OnRefeshRoom()
+    #region NET UI -  RefeshRoom  ClearText  CreateGrid_Show_Room
+    async void RefeshRoom()
     {
-        var roomsAvailable = await client.GetAvailableRooms<RoomAvailable>(roomName);
-        CreateGrid_Show_Room(roomsAvailable);
+        try
+        {
+            var roomsAvailable = await client.GetAvailableRooms<RoomAvailable>(roomName);
+            CreateGrid_Show_Room(roomsAvailable);
+        }
+        catch 
+        {
+
+           
+        }
+
     }
 
-    void OnClearText()
+    void ClearText()
     {
         inputText.text = "";
     }
@@ -321,27 +386,9 @@ public class netColy : MonoBehaviour
 
         }
     }
+    #endregion NET UI -  RefeshRoom  ClearText  CreateGrid_Show_Room
 
 
-    async void GetAvailableRooms()
-    {
-        var roomsAvailable = await client.GetAvailableRooms<RoomAvailable>(roomName);
-
-        CreateGrid_Show_Room(roomsAvailable);
-
-        string str = "Available rooms is (" + roomsAvailable.Length + ")";
-        Debug.Log(str);
-        inputText.text = str;
-
-        if (roomsAvailable.Length <= 0)
-        {
-            CreateRoom();
-        }
-        else
-        {
-            JoinRoom();
-        }
-    }
 
 
     #endregion NET
@@ -358,12 +405,16 @@ public class netColy : MonoBehaviour
             instance = this;
             return;
         }
+
+        StartCoroutine(SetBtnColor());
+
         time_refesh_room = time_refesh_room - Time.deltaTime;
         if (time_refesh_room <= 0)
         {
             time_refesh_room = 3F;
-            OnRefeshRoom();
+            RefeshRoom();
         }
+
 
         if (Input.GetKeyDown(KeyCode.Q))
         {
@@ -372,7 +423,7 @@ public class netColy : MonoBehaviour
 
         if (Input.GetKeyDown(KeyCode.C))
         {
-            OnClearText();
+            ClearText();
         }
 
 
@@ -390,7 +441,37 @@ public class netColy : MonoBehaviour
             spawnTime = 0.2F;
             StartCoroutine(spawnThing());
         }
+
+        if (!isLocalPlayer)
+        {
+            return;
+        }
+
     }
+
+    IEnumerator SetBtnColor()
+    {
+        yield return new WaitForSeconds(1F);
+        try
+        {
+            foreach (Transform child in grid_list_room.transform)
+            {
+                if (child.gameObject.GetComponentInChildren<Text>().text == room.Id)
+                {
+                    child.gameObject.GetComponentInChildren<Text>().color = Color.red;
+                    break;
+                }
+            }
+        }
+        catch 
+        {
+
+            
+        }
+
+    }
+
+
 
     IEnumerator spawnThing()
     {
@@ -411,68 +492,31 @@ public class netColy : MonoBehaviour
 
     async void OnCheckBeforeJoin_AndJoinRoom()
     {
-        #region delete
-
-        //if (ListPlayerConnInfo.Count > 0)
-        //{
-        //    await room.Leave();
-        //    bool bRec = false;
-        //    foreach (var item in ListPlayerConnInfo)
-        //    {
-        //        if (item.sessionId == room.SessionId)
-        //        {
-        //            ListPlayerConnInfo.Remove(item);
-        //            bRec = true;
-        //            break;
-        //        }
-        //    }
-
-        //    if (bRec)
-        //    {
-        //        if (ListPlayerConnInfo.Count > 0)
-        //        {
-        //            string roomId = ListPlayerConnInfo[0].roomId;
-        //            string sessionId = ListPlayerConnInfo[0].sessionId;
-
-        //            roomId = PlayerPrefs.GetString("roomId");
-        //            sessionId = PlayerPrefs.GetString("sessionId");
-
-        //            string ss = $"Cannot Reconnect roomId: __{roomId}__ and sessionId : __{sessionId}__";
-        //            if (string.IsNullOrEmpty(sessionId) || string.IsNullOrEmpty(roomId))
-        //            {
-        //                Debug.Log("empty:" + ss);
-        //                return;
-        //            }
-
-        //            try
-        //            {
-        //                room = await client.Reconnect<State>(roomId, sessionId);
-
-        //                Debug.Log("Reconnected into room successfully.");
-        //            }
-        //            catch 
-        //            {
-        //                Debug.Log("catch:" + ss);
-        //            }
-
-        //        }
-
-        //    }
-        //}
-
-        #endregion delete
-
-        // get check data before join
-        // get list all client connected to server
-        // then go to room.OnMessage<string>("sv_check_before_join" check list, if list this client (sessionID) ? 
-        // if not can join room
         await room.Send("cl_check_before_join");
     }
-
+   
+  
     async void OnLeaveRoom()
     {
-        LeavingRoom();
+        bool b = await LeavingRoom();
     }
+
+
+    // CommandMove(transform.position);
+
+
+    // Code demo, wirte this function in client
+    public async void CommandMove(Vector3 vec3)
+    {
+        if (room == null)
+            return;
+
+        float[] data = { vec3 .x, vec3.y, vec3.z };
+ 
+        await room.Send("player move", data);
+    }
+
+
 
     #endregion GAME
 }

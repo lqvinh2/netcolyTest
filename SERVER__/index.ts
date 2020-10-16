@@ -50,4 +50,4 @@ gameServer.listen(port);
 //   process.exit(1);
 // });
 
-console.log(`Listening on ws://localhost:${ port }, copy this link to your code`);
+console.log(`Listening on [ws://localhost:${port}], 1.copy this link to your code, 2.copy [${gameRoom1_match_from_client_when_create}] to your code client [var roomName]`);

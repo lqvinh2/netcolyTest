@@ -4,6 +4,10 @@ import { Client, Room } from "colyseus";
 import { State, Player } from './state';
 
 
+// global variables for the server
+var enemies = [];
+var playerSpawnPoints = [];
+var clients = [];
 
 export class GameRoom extends Room<State> {
 
@@ -25,7 +29,7 @@ export class GameRoom extends Room<State> {
         this.onMessage("from_cl_test_get_playerInfo", (client) => {
             const p = this.state.players[client.sessionId];
             client.send(p);
-        })
+        });
 
         this.onMessage("cl_move_right", (client) => {
             const p = this.state.players[client.sessionId];
@@ -33,7 +37,7 @@ export class GameRoom extends Room<State> {
 
             //client.send("sv_move_right", p)
 
-        })
+        });
 
         this.onMessage("cl_check_before_join", (client) => {
 
@@ -47,7 +51,17 @@ export class GameRoom extends Room<State> {
             }
             client.send("sv_check_before_join", ss)
        
-        })
+        });
+
+        this.onMessage("player move", (client, pos) => {
+
+            console.log(pos);
+            this.broadcast("player move", pos );
+        });
+
+
+
+
 
 
         console.log("GameRoom created!", options);
@@ -55,6 +69,8 @@ export class GameRoom extends Room<State> {
         this.resetValue();
     }
 
+
+ 
 
 
     onJoin (client:Client) {
@@ -144,5 +160,13 @@ export class GameRoom extends Room<State> {
     update(dt?: number) {
         // console.log("num clients:", Object.keys(this.clients).length);
     }
+
+    guid() {
+        function s4() {
+            return Math.floor((1+Math.random()) * 0x10000).toString(16).substring(1);
+        }
+        return s4() + s4() + '-' + s4() + '-' + s4() + '-' + s4() + '-' + s4() + s4() + s4();
+    }
+
 
 }
