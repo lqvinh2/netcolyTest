@@ -22,6 +22,9 @@ npm-debug.log
 /[Pp]ackages/
 /[Pp]ackage/
 /[Mm]emoryCaptures/
+/BBB/
+/[Bb]BB/
+/[Bb]bb/
 
 # Asset meta data should only be ignored when the corresponding asset is also ignored
 !/[Aa]ssets/**/*.meta
@@ -67,7 +70,8 @@ sysinfo.txt
 # Builds
 *.apk
 *.unitypackage
-[Bb]BB
+
+
 
 # Crashlytics generated file
 crashlytics-build.properties
