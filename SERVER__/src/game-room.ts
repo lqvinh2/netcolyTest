@@ -7,8 +7,12 @@ import { State, Player } from './state';
 // global variables for the server
 var enemies = [];
 var playerSpawnPoints = [];
-var clients = [];
+var clientsServer = [];
 
+var SERVER_NEED_SETUP_INFO_PLAYER = 1;
+var SERVER_FINISH_SETUP_INFO = 2;
+
+console.log(`11111111111`)
 export class GameRoom extends Room<State> {
 
     maxClients = 4;
@@ -26,6 +30,21 @@ export class GameRoom extends Room<State> {
         this.setPatchRate(1000 / 20);
         this.setSimulationInterval((dt) => this.update(dt));
 
+
+
+
+        this.onMessage(SERVER_NEED_SETUP_INFO_PLAYER, (client, dataPlayer) => {
+            clientsServer[dataPlayer.sessionId] = dataPlayer;
+
+            client.send(SERVER_FINISH_SETUP_INFO, 1);
+
+        });
+
+  
+
+
+
+
         this.onMessage("from_cl_test_get_playerInfo", (client) => {
             const p = this.state.players[client.sessionId];
             client.send(p);
@@ -35,7 +54,7 @@ export class GameRoom extends Room<State> {
             const p = this.state.players[client.sessionId];
             this.broadcast("sv_move_right", p );
 
-            //client.send("sv_move_right", p)
+           
 
         });
 
@@ -55,7 +74,6 @@ export class GameRoom extends Room<State> {
 
         this.onMessage("player move", (client, pos) => {
 
-            console.log(pos);
             this.broadcast("player move", pos );
         });
 
@@ -65,6 +83,9 @@ export class GameRoom extends Room<State> {
 
 
         console.log("GameRoom created!", options);
+
+
+     
 
         this.resetValue();
     }
@@ -79,19 +100,19 @@ export class GameRoom extends Room<State> {
 
         console.log("client joined room :[GameRoom], has sessionId: ", client.sessionId);
 
-        let player: Player = new Player();
-        player.sessionId = client.sessionId;
-        player.seat = this.playerCount + 1;
+        // let player: Player = new Player();
+        // player.sessionId = client.sessionId;
+        // player.seat = this.playerCount + 1;
 
-        this.state.players[client.sessionId] = player;
-        this.playerCount++;
-        console.log(this.state.players);
-        console.log(`START TEST NET 1:`);
+        // this.state.players[client.sessionId] = player;
+        // this.playerCount++;
+        // console.log(this.state.players);
+        // console.log(`START TEST NET 1:`);
         //client.send("svTestNet", `[message from SERVER] : you joined to room, client has ID :${client.id}, sessionId:${client.sessionId}`);
 
         // client.send("svTestNet", this.state.players[client.sessionId]);
-        this.broadcast("svTestNet", this.state.players[client.sessionId]);
-        // client.send("testConnectionToMaster", "[message from SERVER] : you joined to room");
+        // this.broadcast("svTestNet", this.state.players[client.sessionId]);
+        client.send(SERVER_NEED_SETUP_INFO_PLAYER, 11111);
     }
 
 
@@ -102,51 +123,25 @@ export class GameRoom extends Room<State> {
         console.log("client onLeave", client.sessionId);
 
         let ss="NONE";
-        if (this.clients.length > 0) {
+        if (clientsServer.length > 0) {
             ss = "";
-            for (var cl of this.clients) {
+            for (var cl of clientsServer) {
                 ss = ss  + cl.sessionId + "__";
               }
         }
 
         console.log("con` lai trong room :" + ss);
 
-        // const newClient = await this.allowReconnection(client, 10);
-        // console.log("reconnected!", newClient.sessionId);
+        delete clientsServer[client.sessionId];
 
-        delete this.state.players[client.sessionId];
+        for (var cl of clientsServer) {
+            ss = ss  + cl.sessionId + "__";
+          }
+
         this.playerCount--;
         this.state.phase = 'waiting';
     }
 
-
-    // onMessage (client, message) {
-    //     console.log("message onMessage", message);
-
-    //     if (!message) return;
-
-    //     let player: Player = this.state.players[client.sessionId];
-
-    //     if (!player) return;
-
-    //     let command: string = message['command'];
-
-    //     switch(command)
-    //     {
-    //         case"1":
-    //             break;
-
-
-    //         case"2":
-            
-    //             break;
-    //         default:
-    //                 console.log('unknown command');
-    //     }
-        
-
-        
-    // }
 
     onDispose () {
         console.log("onDispose() room destroyed!");

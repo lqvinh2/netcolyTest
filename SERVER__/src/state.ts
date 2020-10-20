@@ -31,11 +31,33 @@ export class RotationJSON extends Schema {
 
 
 export class Player extends Schema {
+
+    @type("boolean")
+    isRoomMater: boolean = false;
+
+    @type("boolean")
+    isLocalPlayer: boolean = false;
+
+    @type('string')
+    room_name: string;
+
     @type('string')
     sessionId: string;
 
+    @type('string')
+    name: string;
+
     @type('int16')
     seat: number;
+
+    @type('int16')
+    health: number;
+
+    @type(['float32'])
+    position: ArraySchema<number> = new ArraySchema<number>();
+
+    @type(['float32'])
+    rotation: ArraySchema<number> = new ArraySchema<number>();
 }
 
 export class State extends Schema {
@@ -64,3 +86,4 @@ export class State extends Schema {
     @type(['int16'])
     player2Shots: ArraySchema<number> = new ArraySchema<number>();
 }
+

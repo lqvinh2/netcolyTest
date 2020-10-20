@@ -33,6 +33,8 @@ public class netColy : MonoBehaviour
 
     public static netColy instance = null;
 
+    public Player2 localPlayer;
+
     public bool isRoomMater = false; // chi la` room master thi` moi tao ENEMY
     public bool isLocalPlayer = false; // khi tham gia room thành công thì chuyển trạng thái set sang TRUE
     
@@ -149,8 +151,7 @@ public class netColy : MonoBehaviour
         room = await client.Join<State>(roomName, new Dictionary<string, object>() { });
         RegisterRecMes();
 
-        isLocalPlayer = true;
-        isRoomMater = false;
+
     }
 
     public async void JoinRoomByID(string rID)
@@ -180,11 +181,13 @@ public class netColy : MonoBehaviour
         room = await client.JoinOrCreate<State>(roomName, new Dictionary<string, object>() { });
         RegisterRecMes();
 
-        isLocalPlayer = true;
-        isRoomMater = false;
+
 
     }
 
+    byte SERVER_NEED_SETUP_INFO_PLAYER = 1;
+    byte SERVER_FINISH_SETUP_INFO = 2;
+    Player2 player2;
     public void RegisterRecMes()
     {
         PlayerPrefs.SetString("roomName", room.Name);
@@ -192,7 +195,51 @@ public class netColy : MonoBehaviour
         PlayerPrefs.SetString("sessionId", room.SessionId);
         PlayerPrefs.Save();
 
-        //ListPlayerConnInfo.Add(new CLASS_PlayerConnInfo() { roomName = room.Name, roomId = room.Id, sessionId = room.SessionId });
+        //ListPlayerConnInfo.A dd(new CLASS_PlayerConnInfo() { roomName = room.Name, roomId = room.Id, sessionId = room.SessionId });
+
+        // server need info player
+
+        room.OnMessage<object>(SERVER_NEED_SETUP_INFO_PLAYER, (message) =>
+        {
+            player2 = new Player2();
+            player2.isRoomMater = isRoomMater;
+            player2.isLocalPlayer = false;
+            player2.sessionId = room.SessionId;
+            player2.name = "PlayerName_" + room.SessionId;
+            player2.room_name = "RoomName_" + room.Name;
+            player2.room_id= "RoomID_" + room.Id;
+            player2.position = GetPostion();
+            player2.rotation = GetRotation();
+
+            player2.timeJoined = DateTime.Now.ToString();
+
+            OnServerNeedInfoPlayer(player2);
+        });
+
+        room.OnMessage<object>(SERVER_FINISH_SETUP_INFO, (message) =>
+        {
+            player2.isLocalPlayer = true;
+            localPlayer = player2.Clone();
+
+            // reset value to default is false
+            isRoomMater = false;
+            isLocalPlayer = false;
+        });
+
+
+        async void OnServerNeedInfoPlayer(Player2 p)
+        {
+            await room.Send(SERVER_NEED_SETUP_INFO_PLAYER, p);
+
+        }
+
+
+
+   
+
+
+  
+
 
 
 
@@ -394,6 +441,17 @@ public class netColy : MonoBehaviour
     #endregion NET
 
     #region GAME
+
+    float[] GetPostion()
+    {
+        return new float[] { transform.position.x, transform.position.y, transform.position.z };
+    }
+
+    float[] GetRotation()
+    {
+        return new float[] { transform.rotation.x, transform.rotation.y, transform.rotation.z };
+    }
+
     public GameObject spawnPoint;
     public GameObject prefab;
     float spawnTime = 0.3F;
